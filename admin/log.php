@@ -13,7 +13,7 @@ if (isset($_POST['clear_log'])) {
         
         // Catat ulang log pembersihan oleh Admin yang bertugas
         $log = $pdo->prepare("INSERT INTO tb_log_aktivitas (id_user, aktivitas) VALUES (?, ?)");
-        $log->execute([$_SESSION['user']['id_user'], "Mebersihkan/mereset seluruh riwayat log aktivitas sistem"]);
+        $log->execute([$_SESSION['user']['id_user'], "Membersihkan/mereset seluruh riwayat log aktivitas sistem"]);
 
         $msg = "Seluruh riwayat log aktivitas berhasil dibersihkan!";
         $msg_type = "success";
@@ -23,16 +23,28 @@ if (isset($_POST['clear_log'])) {
     }
 }
 
-// Fetch Semua Log Aktivitas JOIN tb_user
+// Konfigurasi Paginasi (35 data per halaman)
+$limit = 35;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = max($page, 1);
+$offset = ($page - 1) * $limit;
+
+// Hitung Total Log untuk Paginasi
+$total_stmt = $pdo->query("SELECT COUNT(*) FROM tb_log_aktivitas");
+$total_log = $total_stmt->fetchColumn();
+$total_pages = ceil($total_log / $limit);
+
+// Fetch Log Aktivitas JOIN tb_user dengan LIMIT dan OFFSET
 $query_log = "SELECT l.*, u.nama_lengkap, u.username, u.role 
               FROM tb_log_aktivitas l 
               LEFT JOIN tb_user u ON l.id_user = u.id_user 
               ORDER BY l.id_log DESC 
-              LIMIT 500"; // Mengambil 500 log terbaru
-$logs = $pdo->query($query_log)->fetchAll();
-
-// Total Aktivitas
-$total_log = count($logs);
+              LIMIT :limit OFFSET :offset";
+$stmt = $pdo->prepare($query_log);
+$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
+$logs = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="id" data-bs-theme="dark">
@@ -258,6 +270,15 @@ $total_log = count($logs);
                     <i class="bi bi-journal-text"></i> Log Aktivitas
                 </a>
             </li>
+            <!-- Divider & Kategori Sistem/Pengaturan -->
+            <hr class="border-secondary opacity-25 my-3">
+            <div class="px-3 mb-2 text-muted uppercase small fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">Sistem & Pengaturan</div>
+
+            <li>
+                <a href="database.php" class="nav-link">
+                    <i class="bi bi-database-gear text-warning"></i> Maintenance Database
+                </a>
+            </li>
             <hr class="border-secondary opacity-25 my-3">
             <li>
                 <a href="../logout.php" class="nav-link text-danger">
@@ -391,6 +412,51 @@ $total_log = count($logs);
                     </tbody>
                 </table>
             </div>
+
+            <!-- Paginasi Navigasi -->
+            <?php if ($total_pages > 1): ?>
+            <nav class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary border-opacity-10 flex-wrap gap-2">
+                <div class="text-muted small">
+                    Menampilkan halaman <b><?= $page ?></b> dari <b><?= $total_pages ?></b> (Total <b><?= $total_log ?></b> log)
+                </div>
+                <ul class="pagination pagination-sm mb-0">
+                    <!-- Tombol Previous -->
+                    <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
+                        <a class="page-link rounded-start-pill px-3" href="?page=<?= $page - 1 ?>">Sebelumnya</a>
+                    </li>
+
+                    <?php 
+                    // Tampilkan nomor halaman dengan batasan agar rapi
+                    $start_p = max(1, $page - 2);
+                    $end_p = min($total_pages, $page + 2);
+                    
+                    if ($start_p > 1) {
+                        echo '<li class="page-item"><a class="page-link" href="?page=1">1</a></li>';
+                        if ($start_p > 2) echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                    }
+
+                    for ($i = $start_p; $i <= $end_p; $i++): 
+                    ?>
+                        <li class="page-item <?= ($page == $i) ? 'active' : '' ?>">
+                            <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
+                        </li>
+                    <?php 
+                    endfor;
+
+                    if ($end_p < $total_pages) {
+                        if ($end_p < $total_pages - 1) echo '<li class="page-item disabled"><span class="page-link">...</span></li>';
+                        echo '<li class="page-item"><a class="page-link" href="?page=' . $total_pages . '">' . $total_pages . '</a></li>';
+                    }
+                    ?>
+
+                    <!-- Tombol Next -->
+                    <li class="page-item <?= ($page >= $total_pages) ? 'disabled' : '' ?>">
+                        <a class="page-link rounded-end-pill px-3" href="?page=<?= $page + 1 ?>">Berikutnya</a>
+                    </li>
+                </ul>
+            </nav>
+            <?php endif; ?>
+
         </div>
 
     </main>
@@ -404,7 +470,7 @@ $total_log = count($logs);
         // Inisialisasi AOS Animation
         AOS.init({
             once: true,
-            offset: 40
+            offset: 35
         });
 
         // Toggle Sidebar Mobile
@@ -416,7 +482,7 @@ $total_log = count($logs);
             });
         }
 
-        // Live Search Filter untuk Tabel Log
+        // Live Search Filter untuk Tabel Log (Client-side pencarian di halaman aktif)
         const searchInput = document.getElementById('searchInput');
         const logTable = document.getElementById('logTable').getElementsByTagName('tbody')[0];
 

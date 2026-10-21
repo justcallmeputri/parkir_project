@@ -78,6 +78,12 @@ if (isset($_GET['hapus'])) {
 
 // Fetch Semua Data Area Parkir
 $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->fetchAll();
+
+// Hitung Statistik Ringkasan Area
+$tot_area_count = count($area_list);
+$tot_kapasitas  = array_sum(array_column($area_list, 'kapasitas'));
+$tot_terisi     = array_sum(array_column($area_list, 'terisi'));
+$rasio_global   = $tot_kapasitas > 0 ? round(($tot_terisi / $tot_kapasitas) * 100) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="id" data-bs-theme="dark">
@@ -236,18 +242,99 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
         }
 
         .form-control, .form-select {
-            border-radius: 10px;
-            padding: 10px 14px;
+            border-radius: 12px;
+            padding: 11px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
-        .progress {
+        [data-bs-theme="light"] .form-control, 
+        [data-bs-theme="light"] .form-select {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.12);
+        }
+
+        /* Custom Progress Bar Styling */
+        .progress-luxury {
             height: 10px;
             border-radius: 10px;
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
         }
 
-        [data-bs-theme="light"] .progress {
-            background-color: rgba(0, 0, 0, 0.08);
+        [data-bs-theme="light"] .progress-luxury {
+            background-color: rgba(0, 0, 0, 0.06);
+        }
+
+        .progress-bar-success {
+            background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+
+        .progress-bar-warning {
+            background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+        }
+
+        .progress-bar-danger {
+            background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+        }
+
+        /* Action Buttons Styling */
+        .btn-action-edit {
+            background: rgba(99, 102, 241, 0.12) !important;
+            border: 1px solid rgba(99, 102, 241, 0.3) !important;
+            color: #818cf8 !important;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action-edit:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(99, 102, 241, 0.35) !important;
+        }
+
+        .btn-action-delete {
+            background: rgba(239, 68, 68, 0.12) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+            color: #f87171 !important;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action-delete:hover {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(239, 68, 68, 0.35) !important;
+        }
+
+        .btn-luxury-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            border: none;
+            color: #ffffff;
+            transition: all 0.3s ease;
+        }
+
+        .btn-luxury-primary:hover {
+            background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35) !important;
+        }
+
+        /* Modal Glassmorphism */
+        .modal-content-luxury {
+            background: rgba(25, 29, 36, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+        }
+
+        [data-bs-theme="light"] .modal-content-luxury {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
@@ -300,6 +387,15 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
                     <i class="bi bi-journal-text"></i> Log Aktivitas
                 </a>
             </li>
+            <!-- Divider & Kategori Sistem/Pengaturan -->
+            <hr class="border-secondary opacity-25 my-3">
+            <div class="px-3 mb-2 text-muted uppercase small fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">Sistem & Pengaturan</div>
+
+            <li>
+                <a href="database.php" class="nav-link">
+                    <i class="bi bi-database-gear text-warning"></i> Maintenance Database
+                </a>
+            </li>
             <hr class="border-secondary opacity-25 my-3">
             <li>
                 <a href="../logout.php" class="nav-link text-danger">
@@ -347,20 +443,79 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
 
         <!-- Alert Notification -->
         <?php if ($msg): ?>
-            <div class="alert alert-<?= $msg_type ?> alert-dismissible fade show rounded-4 mb-4" role="alert" data-aos="fade-down">
+            <div class="alert alert-<?= $msg_type ?> alert-dismissible fade show rounded-4 mb-4 shadow-sm" role="alert" data-aos="fade-down">
                 <i class="bi bi-info-circle-fill me-2"></i> <?= $msg ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         <?php endif; ?>
 
+        <!-- Stat Cards Ringkasan Area -->
+        <div class="row g-3 mb-4" data-aos="fade-up" data-aos-duration="700">
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="luxury-card p-3 p-md-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold">Total Area Parkir</span>
+                            <h3 class="fw-extrabold mb-0 mt-1"><?= $tot_area_count ?></h3>
+                        </div>
+                        <div class="p-3 bg-primary bg-opacity-10 text-primary rounded-4 fs-4">
+                            <i class="bi bi-p-square-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="luxury-card p-3 p-md-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold">Total Kapasitas</span>
+                            <h3 class="fw-extrabold mb-0 mt-1 text-info"><?= number_format($tot_kapasitas) ?> <span class="fs-6 fw-normal text-muted">Slot</span></h3>
+                        </div>
+                        <div class="p-3 bg-info bg-opacity-10 text-info rounded-4 fs-4">
+                            <i class="bi bi-bounding-box-circles"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="luxury-card p-3 p-md-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold">Kendaraan Terparkir</span>
+                            <h3 class="fw-extrabold mb-0 mt-1 text-warning"><?= number_format($tot_terisi) ?> <span class="fs-6 fw-normal text-muted">Slot</span></h3>
+                        </div>
+                        <div class="p-3 bg-warning bg-opacity-10 text-warning rounded-4 fs-4">
+                            <i class="bi bi-car-front-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-sm-6 col-xl-3">
+                <div class="luxury-card p-3 p-md-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold">Rasio Keterisian Global</span>
+                            <h3 class="fw-extrabold mb-0 mt-1 text-success"><?= $rasio_global ?>%</h3>
+                        </div>
+                        <div class="p-3 bg-success bg-opacity-10 text-success rounded-4 fs-4">
+                            <i class="bi bi-pie-chart-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Content Card -->
         <div class="luxury-card p-4 p-md-4" data-aos="fade-up" data-aos-duration="800">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
                 <div>
-                    <h5 class="fw-bold mb-1"><i class="bi bi-p-square-fill text-primary me-2"></i>Daftar Area & Daya Tampung</h5>
-                    <p class="text-muted small mb-0">Kelola lokasi, kapasitas total, serta pemantauan jumlah terisi</p>
+                    <h5 class="fw-bold mb-1"><i class="bi bi-geo-alt-fill text-primary me-2"></i>Daftar Area & Daya Tampung</h5>
+                    <p class="text-muted small mb-0">Kelola lokasi, kapasitas total, serta pemantauan jumlah terisi secara real-time</p>
                 </div>
-                <button class="btn btn-primary px-4 py-2 rounded-pill fw-semibold" data-bs-toggle="modal" data-bs-target="#modalTambahArea">
+                <button class="btn btn-luxury-primary px-4 py-2 rounded-pill fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahArea">
                     <i class="bi bi-plus-lg me-1"></i> Tambah Area Baru
                 </button>
             </div>
@@ -374,7 +529,7 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
                             <th class="py-3">Nama Area</th>
                             <th class="py-3">Kapasitas</th>
                             <th class="py-3">Terisi</th>
-                            <th class="py-3" style="min-width: 180px;">Status Keterisian</th>
+                            <th class="py-3" style="min-width: 200px;">Status Keterisian</th>
                             <th class="py-3 text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -390,43 +545,47 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
                                 
                                 // Penentuan Warna Progress Bar & Badge
                                 if ($persen >= 90) {
-                                    $bg_bar = 'bg-danger';
-                                    $badge_status = '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">Penuh</span>';
+                                    $bg_bar = 'progress-bar-danger';
+                                    $badge_status = '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1 rounded-pill"><i class="bi bi-exclamation-triangle me-1"></i>Penuh</span>';
                                 } elseif ($persen >= 70) {
-                                    $bg_bar = 'bg-warning';
-                                    $badge_status = '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1">Hampir Penuh</span>';
+                                    $bg_bar = 'progress-bar-warning';
+                                    $badge_status = '<span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2 py-1 rounded-pill"><i class="bi bi-clock-history me-1"></i>Hampir Penuh</span>';
                                 } else {
-                                    $bg_bar = 'bg-success';
-                                    $badge_status = '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">Tersedia</span>';
+                                    $bg_bar = 'progress-bar-success';
+                                    $badge_status = '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill"><i class="bi bi-check-circle me-1"></i>Tersedia</span>';
                                 }
                             ?>
                             <tr>
                                 <td class="fw-bold px-3">#<?= $a['id_area'] ?></td>
                                 <td class="fw-semibold">
-                                    <i class="bi bi-geo-alt text-primary me-1"></i> <?= htmlspecialchars($a['nama_area']) ?>
+                                    <span class="d-inline-flex align-items-center gap-2">
+                                        <i class="bi bi-geo-alt-fill text-primary"></i> <?= htmlspecialchars($a['nama_area']) ?>
+                                    </span>
                                 </td>
-                                <td><span class="fw-bold"><?= $a['kapasitas'] ?></span> Slot</td>
-                                <td><span class="fw-bold"><?= $a['terisi'] ?></span> Terpakai</td>
+                                <td><span class="fw-bold"><?= number_format($a['kapasitas']) ?></span> <small class="text-muted">Slot</small></td>
+                                <td><span class="fw-bold text-primary"><?= number_format($a['terisi']) ?></span> <small class="text-muted">Terpakai</small></td>
                                 <td>
                                     <div class="d-flex align-items-center justify-content-between mb-1">
-                                        <small class="text-muted" style="font-size: 11px;"><?= $persen ?>% (Sisa <?= $sisa ?>)</small>
+                                        <small class="fw-bold" style="font-size: 11px;"><?= $persen ?>% <span class="text-muted fw-normal">(Sisa <?= $sisa ?> Slot)</span></small>
                                         <?= $badge_status ?>
                                     </div>
-                                    <div class="progress">
+                                    <div class="progress progress-luxury">
                                         <div class="progress-bar <?= $bg_bar ?>" role="progressbar" style="width: <?= $persen ?>%" aria-valuenow="<?= $persen ?>" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                 </td>
                                 <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-info rounded-pill px-3 me-1" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#modalEditArea<?= $a['id_area'] ?>">
-                                        <i class="bi bi-pencil-square"></i> Edit
-                                    </button>
-                                    <a href="area.php?hapus=<?= $a['id_area'] ?>" 
-                                       class="btn btn-sm btn-outline-danger rounded-pill px-3"
-                                       onclick="return confirm('Apakah Anda yakin ingin menghapus area <?= htmlspecialchars($a['nama_area']) ?>?')">
-                                        <i class="bi bi-trash"></i> Hapus
-                                    </a>
+                                    <div class="d-inline-flex gap-2">
+                                        <button class="btn btn-sm btn-action-edit rounded-pill px-3 fw-semibold d-inline-flex align-items-center gap-1" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#modalEditArea<?= $a['id_area'] ?>">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                        <a href="area.php?hapus=<?= $a['id_area'] ?>" 
+                                           class="btn btn-sm btn-action-delete rounded-pill px-3 fw-semibold d-inline-flex align-items-center gap-1"
+                                           onclick="return confirm('Apakah Anda yakin ingin menghapus area <?= htmlspecialchars($a['nama_area']) ?>?')">
+                                            <i class="bi bi-trash"></i> Hapus
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -441,13 +600,13 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
     <!-- Modal Tambah Area Baru -->
     <div class="modal fade" id="modalTambahArea" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0 shadow">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle text-primary me-2"></i>Tambah Area Parkir</h5>
+            <div class="modal-content modal-content-luxury shadow-lg">
+                <div class="modal-header border-0 pb-0 pt-4 px-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle-fill text-primary me-2"></i>Tambah Area Parkir</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST">
-                    <div class="modal-body py-3">
+                    <div class="modal-body py-3 px-4">
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Nama Area Parkir</label>
                             <input type="text" name="nama_area" class="form-control" placeholder="Contoh: Area A - Motor" required>
@@ -463,26 +622,26 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
                             <input type="number" name="terisi" class="form-control" value="0" min="0" required>
                         </div>
                     </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" name="tambah_area" class="btn btn-primary rounded-pill px-4">Simpan Area</button>
+                    <div class="modal-footer border-0 pb-4 pt-0 px-4">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" name="tambah_area" class="btn btn-luxury-primary rounded-pill px-4 fw-semibold">Simpan Area</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modals Edit Area (Ditempatkan Luar Tabel agar Rendering Modal Rapi & Pas) -->
+    <!-- Modals Edit Area -->
     <?php foreach ($area_list as $a): ?>
     <div class="modal fade" id="modalEditArea<?= $a['id_area'] ?>" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0 shadow">
-                <div class="modal-header border-0 pb-0">
+            <div class="modal-content modal-content-luxury shadow-lg">
+                <div class="modal-header border-0 pb-0 pt-4 px-4">
                     <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>Edit Area Parkir</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST">
-                    <div class="modal-body py-3">
+                    <div class="modal-body py-3 px-4">
                         <input type="hidden" name="id_area" value="<?= $a['id_area'] ?>">
                         
                         <div class="mb-3">
@@ -500,9 +659,9 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
                             <input type="number" name="terisi" class="form-control" value="<?= $a['terisi'] ?>" min="0" required>
                         </div>
                     </div>
-                    <div class="modal-footer border-0 pt-0">
-                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" name="edit_area" class="btn btn-primary rounded-pill px-4">Simpan Perubahan</button>
+                    <div class="modal-footer border-0 pb-4 pt-0 px-4">
+                        <button type="button" class="btn btn-outline-secondary rounded-pill px-4 fw-semibold" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" name="edit_area" class="btn btn-luxury-primary rounded-pill px-4 fw-semibold">Simpan Perubahan</button>
                     </div>
                 </form>
             </div>
@@ -557,4 +716,4 @@ $area_list = $pdo->query("SELECT * FROM tb_area_parkir ORDER BY id_area DESC")->
         });
     </script>
 </body>
-</html> 
+</html>

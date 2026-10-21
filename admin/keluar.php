@@ -292,6 +292,15 @@ $parkir_aktif = $pdo->query($query_aktif)->fetchAll();
                     <i class="bi bi-journal-text"></i> Log Aktivitas
                 </a>
             </li>
+            <!-- Divider & Kategori Sistem/Pengaturan -->
+            <hr class="border-secondary opacity-25 my-3">
+            <div class="px-3 mb-2 text-muted uppercase small fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">Sistem & Pengaturan</div>
+
+            <li>
+                <a href="database.php" class="nav-link">
+                    <i class="bi bi-database-gear text-warning"></i> Maintenance Database
+                </a>
+            </li>
             <hr class="border-secondary opacity-25 my-3">
             <li>
                 <a href="../logout.php" class="nav-link text-danger">

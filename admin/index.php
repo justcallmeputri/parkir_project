@@ -5,12 +5,43 @@ check_role(['admin']);
 
 // Mengambil beberapa data statistik ringkas dari database untuk ditampilkan di dashboard
 try {
-    $total_user = $pdo->query("SELECT COUNT(*) FROM tb_user")->fetchColumn();
+    $total_user      = $pdo->query("SELECT COUNT(*) FROM tb_user")->fetchColumn();
     $total_kendaraan = $pdo->query("SELECT COUNT(*) FROM tb_kendaraan")->fetchColumn();
-    $total_area = $pdo->query("SELECT COUNT(*) FROM tb_area_parkir")->fetchColumn();
-    $total_tarif = $pdo->query("SELECT COUNT(*) FROM tb_tarif")->fetchColumn();
+    $total_area      = $pdo->query("SELECT COUNT(*) FROM tb_area_parkir")->fetchColumn();
+    $total_tarif     = $pdo->query("SELECT COUNT(*) FROM tb_tarif")->fetchColumn();
+
+    // 1. DATA UNTUK GRAFIK TREN 7 HARI TERAKHIR (Real-Time)
+    $dates = [];
+    $data_transaksi = [];
+    $data_pendapatan = [];
+
+    for ($i = 6; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-$i days"));
+        $dates[] = date('d M', strtotime($date));
+
+        // Jumlah Transaksi per Tanggal
+        $stmt_tx = $pdo->prepare("SELECT COUNT(*) FROM tb_transaksi WHERE DATE(waktu_masuk) = ?");
+        $stmt_tx->execute([$date]);
+        $data_transaksi[] = (int)$stmt_tx->fetchColumn();
+
+        // Total Pendapatan per Tanggal
+        $stmt_inc = $pdo->prepare("SELECT SUM(biaya_total) FROM tb_transaksi WHERE DATE(waktu_keluar) = ? AND status = 'keluar'");
+        $stmt_inc->execute([$date]);
+        $data_pendapatan[] = (float)($stmt_inc->fetchColumn() ?: 0);
+    }
+
+    // 2. DATA UNTUK GRAFIK DISTRIBUSI AREA PARKIR (Real-Time)
+    $area_labels = [];
+    $area_terisi = [];
+    $stmt_area_chart = $pdo->query("SELECT nama_area, terisi FROM tb_area_parkir ORDER BY nama_area ASC");
+    while ($row = $stmt_area_chart->fetch()) {
+        $area_labels[] = $row['nama_area'];
+        $area_terisi[] = (int)$row['terisi'];
+    }
+
 } catch (Exception $e) {
     $total_user = $total_kendaraan = $total_area = $total_tarif = 0;
+    $dates = $data_transaksi = $data_pendapatan = $area_labels = $area_terisi = [];
 }
 ?>
 <!DOCTYPE html>
@@ -34,6 +65,8 @@ try {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <!-- AOS Animation Library -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body {
@@ -209,6 +242,15 @@ try {
                     <i class="bi bi-journal-text"></i> Log Aktivitas
                 </a>
             </li>
+            <!-- Divider & Kategori Sistem/Pengaturan -->
+            <hr class="border-secondary opacity-25 my-3">
+            <div class="px-3 mb-2 text-muted uppercase small fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">Sistem & Pengaturan</div>
+
+            <li>
+                <a href="database.php" class="nav-link">
+                    <i class="bi bi-database-gear text-warning"></i> Maintenance Database
+                </a>
+            </li>
             <hr class="border-secondary opacity-25 my-3">
             <li>
                 <a href="../logout.php" class="nav-link text-danger">
@@ -333,6 +375,42 @@ try {
             </div>
         </div>
 
+        <!-- CHARTS SECTION: ANALYTICS & MONITORING -->
+        <div class="row g-4 mb-4">
+            <!-- Chart 1: Tren Transaksi & Pendapatan Harian -->
+            <div class="col-12 col-xl-8" data-aos="fade-up" data-aos-delay="500">
+                <div class="luxury-card p-4 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Tren Transaksi & Pendapatan</h5>
+                            <small class="text-muted">Aktivitas kendaraan dan pendapatan real-time 7 hari terakhir</small>
+                        </div>
+                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-2">
+                            <i class="bi bi-arrow-repeat me-1"></i> Live
+                        </span>
+                    </div>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart 2: Keterisian Slot per Area Parkir -->
+            <div class="col-12 col-xl-4" data-aos="fade-up" data-aos-delay="600">
+                <div class="luxury-card p-4 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h5 class="fw-bold mb-1"><i class="bi bi-pie-chart-fill text-warning me-2"></i>Keterisian Slot</h5>
+                            <small class="text-muted">Distribusi kendaraan terparkir per area</small>
+                        </div>
+                    </div>
+                    <div style="height: 250px; position: relative;" class="d-flex align-items-center justify-content-center">
+                        <canvas id="areaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- Bootstrap JS Bundle -->
@@ -361,7 +439,6 @@ try {
         const themeIcon = document.getElementById('themeIcon');
         const htmlElement = document.documentElement;
 
-        // Fungsi sinkronisasi ikon tombol sesuai tema aktif
         function syncThemeIcon(theme) {
             if (theme === 'light') {
                 themeIcon.classList.replace('bi-sun-fill', 'bi-moon-fill');
@@ -370,23 +447,133 @@ try {
             }
         }
 
-        // Jalankan penyesuaian ikon saat pertama kali halaman dimuat
         const currentSavedTheme = localStorage.getItem('parkirpro_theme') || 'dark';
         syncThemeIcon(currentSavedTheme);
 
-        // Event listener saat tombol diganti
         themeToggleBtn.addEventListener('click', () => {
             const currentTheme = htmlElement.getAttribute('data-bs-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
             
-            // Terapkan ke HTML
             htmlElement.setAttribute('data-bs-theme', newTheme);
-            
-            // Simpan ke localStorage
             localStorage.setItem('parkirpro_theme', newTheme);
-            
-            // Update ikon
             syncThemeIcon(newTheme);
+            
+            // Re-render chart agar warna aksis menyesuaikan tema aktif
+            setTimeout(() => {
+                location.reload();
+            }, 200);
+        });
+
+        // -------------------------------------------------------------
+        // CONFIG CHART.JS LUXURY REAL-TIME INTEGRATION
+        // -------------------------------------------------------------
+        const isDark = (htmlElement.getAttribute('data-bs-theme') || 'dark') === 'dark';
+        const textColor = isDark ? '#94a3b8' : '#64748b';
+        const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+
+        // 1. Chart Tren Transaksi (Line Area Chart)
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        const gradientPurple = ctxTrend.createLinearGradient(0, 0, 0, 300);
+        gradientPurple.addColorStop(0, 'rgba(99, 102, 241, 0.4)');
+        gradientPurple.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: <?= json_encode($dates) ?>,
+                datasets: [
+                    {
+                        label: 'Jumlah Kendaraan',
+                        data: <?= json_encode($data_transaksi) ?>,
+                        borderColor: '#6366f1',
+                        backgroundColor: gradientPurple,
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#818cf8',
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Pendapatan (Rp)',
+                        data: <?= json_encode($data_pendapatan) ?>,
+                        borderColor: '#10b981',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#34d399',
+                        pointRadius: 4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' } }
+                    },
+                    tooltip: {
+                        padding: 12,
+                        borderRadius: 12,
+                        titleFont: { family: 'Plus Jakarta Sans', size: 14, weight: 'bold' },
+                        bodyFont: { family: 'Plus Jakarta Sans', size: 13 }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: gridColor },
+                        ticks: { color: textColor, font: { family: 'Plus Jakarta Sans' } }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        grid: { color: gridColor },
+                        ticks: { color: textColor, font: { family: 'Plus Jakarta Sans' } }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            color: '#10b981',
+                            font: { family: 'Plus Jakarta Sans' },
+                            callback: function(val) { return 'Rp ' + val.toLocaleString('id-ID'); }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 2. Chart Distribusi Slot Area Parkir (Doughnut Chart)
+        const ctxArea = document.getElementById('areaChart').getContext('2d');
+        new Chart(ctxArea, {
+            type: 'doughnut',
+            data: {
+                labels: <?= json_encode($area_labels) ?>,
+                datasets: [{
+                    data: <?= json_encode($area_terisi) ?>,
+                    backgroundColor: ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#3b82f6'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: textColor, font: { family: 'Plus Jakarta Sans', weight: '600' }, padding: 15 }
+                    }
+                },
+                cutout: '70%'
+            }
         });
     </script>
 </body>

@@ -276,6 +276,28 @@ $parkir_masuk_terbaru = $pdo->query($query_terbaru)->fetchAll();
             background-color: rgba(0, 0, 0, 0.03) !important;
             border-bottom: 2px solid rgba(0, 0, 0, 0.08);
         }
+
+        /* Styling Tombol Aksi Tabel Luxury */
+        .btn-luxury-action {
+            background: rgba(99, 102, 241, 0.1) !important;
+            border: 1px solid rgba(99, 102, 241, 0.3) !important;
+            color: #818cf8 !important;
+            transition: all 0.3s ease;
+        }
+
+        .btn-luxury-action:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%) !important;
+            border-color: transparent !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(99, 102, 241, 0.35) !important;
+        }
+
+        [data-bs-theme="light"] .btn-luxury-action {
+            background: rgba(99, 102, 241, 0.1) !important;
+            border: 1px solid rgba(99, 102, 241, 0.25) !important;
+            color: #4f46e5 !important;
+        }
     </style>
 </head>
 <body>
@@ -325,6 +347,15 @@ $parkir_masuk_terbaru = $pdo->query($query_terbaru)->fetchAll();
             <li>
                 <a href="log.php" class="nav-link">
                     <i class="bi bi-journal-text"></i> Log Aktivitas
+                </a>
+            </li>
+            <!-- Divider & Kategori Sistem/Pengaturan -->
+            <hr class="border-secondary opacity-25 my-3">
+            <div class="px-3 mb-2 text-muted uppercase small fw-bold" style="font-size: 10px; letter-spacing: 0.5px;">Sistem & Pengaturan</div>
+
+            <li>
+                <a href="database.php" class="nav-link">
+                    <i class="bi bi-database-gear text-warning"></i> Maintenance Database
                 </a>
             </li>
             <hr class="border-secondary opacity-25 my-3">
@@ -479,8 +510,8 @@ $parkir_masuk_terbaru = $pdo->query($query_terbaru)->fetchAll();
                                         <td><small class="fw-semibold"><i class="bi bi-geo-alt text-primary me-1"></i><?= htmlspecialchars($pm['nama_area'] ?: '-') ?></small></td>
                                         <td><small class="text-muted"><?= date('H:i:s', strtotime($pm['waktu_masuk'])) ?></small></td>
                                         <td class="text-center">
-                                            <a href="../petugas/cetak_struk.php?id=<?= $pm['id_parkir'] ?>" class="btn btn-sm btn-outline-light rounded-pill px-2 py-1" title="Cetak Struk/Tiket">
-                                                <i class="bi bi-printer"></i>
+                                            <a href="../petugas/cetak_struk.php?id=<?= $pm['id_parkir'] ?>" class="btn btn-sm btn-luxury-action rounded-circle p-2 d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px;" title="Cetak Struk/Tiket" target="_blank">
+                                                <i class="bi bi-printer-fill fs-6"></i>
                                             </a>
                                         </td>
                                     </tr>

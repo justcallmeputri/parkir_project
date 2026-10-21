@@ -4,8 +4,9 @@ require_once '../config.php';
 check_role(['owner']);
 
 // Handling Filter Tanggal
-$tgl_mulai   = isset($_GET['tgl_mulai']) ? $_GET['tgl_mulai'] : date('Y-m-01');
-$tgl_selesai = isset($_GET['tgl_selesai']) ? $_GET['tgl_selesai'] : date('Y-m-d');
+$is_filtered = isset($_GET['tgl_mulai']) || isset($_GET['tgl_selesai']);
+$tgl_mulai   = isset($_GET['tgl_mulai']) && $_GET['tgl_mulai'] !== '' ? $_GET['tgl_mulai'] : date('Y-m-01');
+$tgl_selesai = isset($_GET['tgl_selesai']) && $_GET['tgl_selesai'] !== '' ? $_GET['tgl_selesai'] : date('Y-m-d');
 
 // Query Rekap Menggunakan Database View v_rekap_transaksi
 $query_rekap = "SELECT * FROM v_rekap_transaksi 
@@ -343,23 +344,42 @@ foreach ($rekap_list as $r) {
         <!-- Filter & Table Card -->
         <div class="luxury-card p-4 p-md-4" data-aos="fade-up" data-aos-duration="900">
             
-            <!-- Filter Tanggal Section -->
-            <div class="filter-section mb-4 pb-3 border-bottom border-secondary border-opacity-10">
-                <form method="GET" class="row g-3 align-items-end">
-                    <div class="col-12 col-sm-5 col-md-4">
-                        <label class="form-label small fw-semibold">Dari Tanggal</label>
-                        <input type="date" name="tgl_mulai" class="form-control" value="<?= $tgl_mulai ?>">
+            <!-- Filter Tanggal Section (Luxury Modern Design) -->
+<div class="filter-section mb-4 pb-3 border-bottom border-secondary border-opacity-10">
+    <form method="GET" class="row g-3 align-items-end">
+                    <!-- Input Dari Tanggal -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted" style="letter-spacing: 0.5px; font-size: 11px;">
+                            <i class="bi bi-calendar-event me-1 text-primary"></i> Dari Tanggal
+                        </label>
+                        <input type="date" name="tgl_mulai" class="form-control form-control-luxury" value="<?= $tgl_mulai ?>">
                     </div>
-                    <div class="col-12 col-sm-5 col-md-4">
-                        <label class="form-label small fw-semibold">Sampai Tanggal</label>
-                        <input type="date" name="tgl_selesai" class="form-control" value="<?= $tgl_selesai ?>">
+
+                    <!-- Input Sampai Tanggal -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label class="form-label small fw-bold text-uppercase text-muted" style="letter-spacing: 0.5px; font-size: 11px;">
+                            <i class="bi bi-calendar-check me-1 text-primary"></i> Sampai Tanggal
+                        </label>
+                        <input type="date" name="tgl_selesai" class="form-control form-control-luxury" value="<?= $tgl_selesai ?>">
                     </div>
-                    <div class="col-12 col-sm-2 col-md-4 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold w-100 w-sm-auto">
-                            <i class="bi bi-filter me-1"></i> Filter
-                        </button>
-                        <button type="button" onclick="window.print();" class="btn btn-outline-success rounded-pill px-4 fw-semibold btn-print w-100 w-sm-auto">
-                            <i class="bi bi-printer me-1"></i> Cetak Laporan
+
+                    <!-- Group Action Buttons -->
+                    <div class="col-12 col-lg-6 d-flex align-items-center justify-content-between justify-content-lg-end gap-2 flex-wrap">
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Tombol Filter Gradient -->
+                            <button type="submit" class="btn btn-luxury-filter rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm">
+                                <i class="bi bi-funnel-fill"></i> Filter
+                            </button>
+
+                            <!-- Tombol Reset Filter -->
+                            <a href="index.php" class="btn btn-luxury-reset rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2">
+                                <i class="bi bi-arrow-counterclockwise"></i> Reset
+                            </a>
+                        </div>
+
+                        <!-- Tombol Cetak Laporan -->
+                        <button type="button" onclick="window.print();" class="btn btn-luxury-print rounded-pill px-4 py-2 fw-semibold btn-print d-inline-flex align-items-center gap-2 shadow-sm ms-auto ms-lg-0">
+                            <i class="bi bi-printer-fill"></i> Cetak Laporan
                         </button>
                     </div>
                 </form>
